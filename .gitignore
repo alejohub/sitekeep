@@ -1,0 +1,17 @@
+node_modules/
+coverage/
+dist/
+releases/
+*.zip
+*.crx
+*.log
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+browser-profile/
+user-data/
+tmp/
+temp/
