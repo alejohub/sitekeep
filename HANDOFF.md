@@ -28,7 +28,7 @@
 
 Un hostname protegido conserva sus datos y los de sus subdominios. Se comprueba la protección actual antes de cada borrado. Una vista previa manual solo autoriza los candidatos mostrados y caduca al reiniciarse el worker. La limpieza automática recalcula su plan. Ante alcance ambiguo de cookies se conserva la cookie. Si existe algún sitio protegido, se omiten caché y almacenamiento de `browsingData` por riesgo de claves de almacenamiento de terceros.
 
-La limpieza reciente de 1, 2 o 24 horas solo considera cookies observadas por SiteKeep; no infiere la edad de cookies anteriores ni aplica un filtro temporal a caché/almacenamiento. `Borrar todo` y las limpiezas automáticas siguen siendo completas. La estimación de espacio solo mide cookies elegibles y atribuye cada una a una fila.
+La limpieza reciente de 1, 2 o 24 horas solo considera cookies observadas por SiteKeep; no infiere la edad de cookies anteriores ni aplica un filtro temporal a caché/almacenamiento. «Limpiar selección» y «Dry run» se aplican globalmente a los sitios no protegidos, limitados por el periodo elegido. `Limpiar todo`, situado junto a «Actualizar», y las limpiezas automáticas siguen siendo completas. La estimación de espacio solo mide cookies elegibles y atribuye cada una a una fila.
 
 ## Permisos
 
@@ -52,11 +52,11 @@ La llamada se hace por origen descubierto y nunca como borrado global. Con cualq
 
 ## Tests y build
 
-`npm test` ejecuta pruebas con APIs simuladas para historial, seguridad de protección, vista previa, errores parciales, programación, limpieza reciente y espacio. `npm run build` valida fuentes y genera iconos. No hay script de lint ni typecheck adicional. No se usan datos reales del navegador.
+`npm test` ejecuta pruebas con APIs simuladas para historial, seguridad de protección, vista previa, errores parciales, programación, limpieza reciente y espacio. Para v0.1.0 pasaron 42 pruebas. `npm run build` validó 28 archivos y generó iconos; `powershell -NoProfile -File scripts/package.ps1` produjo y verificó los 24 archivos de runtime del ZIP. No hay script de lint ni typecheck adicional. No se usan datos reales del navegador.
 
-## Git/GitHub
+## Git/GitHub y release
 
-Rama `main` y remoto `origin` del repositorio existente `alejohub/sitekeep`. La entrega incluye un único commit inicial y push normal a `main`, sin tag ni GitHub Release. Verificar el hash y el árbol actual con Git antes de cualquier trabajo posterior.
+Rama `main` y remoto `origin` del repositorio existente `alejohub/sitekeep`. La versión publicada es `v0.1.0`, con tag anotado sobre el commit de release y ZIP Chromium más suma SHA-256 en GitHub Releases. Las notas están en `RELEASE_NOTES.md`; el ZIP contiene solo `manifest.json`, `src/` e `icons/`. El directorio local `releases/` está excluido de Git. Antes de una nueva entrega, verificar `git status`, rama, remoto, tag y versión del manifest; ejecutar pruebas y build; generar el ZIP con `powershell -NoProfile -File scripts/package.ps1`; comprobar hashes y descargar los artefactos remotos para verificar su integridad. No modificar CookieKeep.
 
 ## Known issues / limitations
 

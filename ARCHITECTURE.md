@@ -14,9 +14,9 @@ La limpieza automática omite la vista previa manual y calcula candidatos actual
 
 ## Modalidades
 
-**Completa:** popup por sitio y dashboard global comparten el motor. `Borrar todo` significa todos los candidatos no protegidos descubiertos. No se usa un borrado global del navegador.
+**Completa:** popup por sitio y dashboard global comparten el motor. `Limpiar todo` significa todos los candidatos no protegidos descubiertos; está junto a «Actualizar» y no usa el selector de tiempo reciente. No se usa un borrado global del navegador.
 
-**Reciente:** `src/lib/recent-cookies.js` observa cambios de cookies y guarda huellas y marcas de tiempo en `storage.session`. Un plan de 1, 2 o 24 horas solo contiene cookies observadas dentro del intervalo. La caché y el almacenamiento quedan fuera de esta modalidad. Si el worker se reinicia, una vista previa manual anterior caduca; las observaciones de sesión pueden recuperarse.
+**Reciente:** `src/lib/recent-cookies.js` observa cambios de cookies y guarda huellas y marcas de tiempo en `storage.session`. «Limpiar selección» y «Dry run» usan un host nulo, de modo que recorren globalmente los sitios no protegidos, limitados al intervalo elegido de 1, 2 o 24 horas. La caché y el almacenamiento quedan fuera de esta modalidad. Si el worker se reinicia, una vista previa manual anterior caduca; las observaciones de sesión pueden recuperarse.
 
 **Ordenación por visitas:** `src/lib/history.js` consulta el historial solo tras concederse el permiso opcional. Agrega visitas por hostname y sus subdominios en memoria. Solo se persisten la preferencia de orden y el periodo, nunca URLs ni agregados de visitas.
 

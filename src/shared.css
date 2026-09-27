@@ -108,6 +108,9 @@ button.danger:hover:not(:disabled){background:#efcfca;filter:none}
 button.danger:active:not(:disabled){background:#e8bfba}
 button.danger:focus-visible{outline-color:#ba5c61}
 .popup-footer-actions{align-items:stretch}
+.popup .popup-footer-actions .dashboard-entry{flex:1;background:#13775b;color:#fff;box-shadow:0 2px 8px #13775b33}
+.popup .popup-footer-actions .dashboard-entry span{margin-left:4px;font-size:1.1em}
+.popup .popup-footer-actions .dashboard-entry:hover:not(:disabled){background:#10694f;filter:none}
 dialog{font-size:var(--font-size-body);line-height:1.5}
 dialog h2{font-size:16px;font-weight:650;line-height:1.35}
 #dialog-title{margin-bottom:16px}
@@ -144,3 +147,5 @@ dialog h2{font-size:16px;font-weight:650;line-height:1.35}
 .dashboard .table-wrap table{min-width:860px}
 @media(max-width:900px){.dashboard .metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:460px){.dashboard .metrics{grid-template-columns:1fr}}
+.dashboard>header>.actions{flex-shrink:0}
+@media(max-width:650px){.dashboard>header{align-items:stretch;flex-direction:column}.dashboard>header>.actions{align-self:flex-start}}

@@ -63,14 +63,13 @@ async function refresh(){
   }
   $('interval').value=scheduleValue({cleanupSchedule:s.state.schedule});
   $('next').textContent=scheduleText({cleanupSchedule:s.state.schedule},s.nextRun);
-  for(const id of ['clean-all','dry','clean-recent','dry-recent'])$(id).disabled=s.running;
+  for(const id of ['clean-all','clean-recent','dry-recent'])$(id).disabled=s.running;
   $('history').replaceChildren(...s.state.history.map(r=>node('li',`${date(r.at)} · ${r.source==='automatic'?'Automática':r.source==='recent'?'Reciente':'Manual'} · ${r.sites} sitios · ${r.cookiesDeleted} cookies · ${r.originsCleared} orígenes · ${r.failed} errores`)));
   if(!s.state.history.length)$('history').append(node('li','Todavía no hay limpiezas.'));
   renderRows();
   if($('sort').value==='visits')await loadRanking();
 }
 $('refresh').onclick=()=>perform(async()=>{historyCache.clear();await refresh();},$('refresh'));
-$('dry').onclick=()=>perform(()=>showPreview(null,true,refresh),$('dry'));
 $('clean-all').onclick=()=>perform(()=>showPreview(null,false,refresh),$('clean-all'));
 $('dry-recent').onclick=()=>perform(()=>showPreview(null,true,refresh,Number($('recent-hours').value)),$('dry-recent'));
 $('clean-recent').onclick=()=>perform(()=>showPreview(null,false,refresh,Number($('recent-hours').value)),$('clean-recent'));

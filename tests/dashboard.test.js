@@ -6,15 +6,18 @@ class Element{
   append(...children){this.children.push(...children);}
   replaceChildren(...children){this.children=[...children];}
   addEventListener(){}
+  showModal(){this.open=true;}
+  close(){this.open=false;}
   get lastChild(){return this.children.at(-1);}
 }
-const ids=['version','search','filter','sort','history-period','visits-heading','ranking-status','history-permission','rows','empty','metrics','interval','next','clean-all','dry','clean-recent','dry-recent','recent-hours','history','refresh','settings','notice','dialog','dialog-title','dialog-body','dialog-actions'];
+const ids=['version','search','filter','sort','history-period','visits-heading','ranking-status','history-permission','rows','empty','metrics','interval','next','clean-all','clean-recent','dry-recent','recent-hours','history','refresh','settings','notice','dialog','dialog-title','dialog-body','dialog-actions'];
 const elements=Object.fromEntries(ids.map(id=>[id,new Element()]));
 elements.filter.value='all';elements.sort.value='cookies';elements['history-period'].value='30';elements['recent-hours'].value='1';
 globalThis.document={getElementById:id=>elements[id],createElement:tag=>new Element(tag)};
 let granted=false,requests=0,searches=0;
+const messages=[];
 globalThis.chrome={
-  runtime:{getManifest:()=>({version:'0.1.0'}),sendMessage:async()=>({ok:true,data:{state:{protectedSites:[],schedule:{mode:'disabled'},history:[]},rows:[{host:'a.test',cookies:1,origins:['https://a.test'],protected:false,releasableBytes:231}],totalCookies:1,measured:{releasableBytes:231},running:false}})},
+  runtime:{getManifest:()=>({version:'0.1.0'}),sendMessage:async message=>{messages.push(message);return {ok:true,data:message.type==='preview'?{token:'test-preview',hosts:['a.test'],cookieCount:1,estimatedBytes:231,keptProtected:0,temporalExcluded:0,types:['cookies']}:{state:{protectedSites:[],schedule:{mode:'disabled'},history:[]},rows:[{host:'a.test',cookies:1,origins:['https://a.test'],protected:false,releasableBytes:231}],totalCookies:1,measured:{releasableBytes:231},running:false}};}},
   storage:{local:{get:async()=>({dashboardPreferences:{sort:'cookies',period:30}}),set:async()=>{}},onChanged:{addListener:()=>{}}},
   permissions:{contains:async()=>granted,request:()=>{requests++;return Promise.resolve(granted);},onRemoved:{addListener:()=>{}}}
 };
@@ -39,4 +42,16 @@ test('granted history sorts and displays visits',async()=>{
   assert.equal(searches,1);
   assert.equal(elements.rows.children[0].children[3].textContent,'1');
   assert.equal(elements.rows.children[0].children[4].textContent,'≈ 231 B');
+});
+test('recent actions use the selected time globally while clean all ignores it',async()=>{
+  elements['recent-hours'].value='2';
+  messages.length=0;
+  elements['dry-recent'].onclick();await tick();
+  assert.deepEqual(messages.find(m=>m.type==='preview'),{type:'preview',host:null,recentHours:2});
+  messages.length=0;
+  elements['clean-recent'].onclick();await tick();
+  assert.deepEqual(messages.find(m=>m.type==='preview'),{type:'preview',host:null,recentHours:2});
+  messages.length=0;
+  elements['clean-all'].onclick();await tick();
+  assert.deepEqual(messages.find(m=>m.type==='preview'),{type:'preview',host:null,recentHours:null});
 });
