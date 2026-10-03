@@ -94,3 +94,36 @@ test('missing browsingData permission fails without a global fallback',async()=>
   const result=await executeCleanupPlan(data.api,createQueue());
   assert.equal(result.failed,1);assert.equal(result.originsCleared,0);
 });
+test('real progress counts cookies and opaque origin calls, including partial failures',async()=>{
+  const data=fake({cookies:[cookie('one.example')]}),updates=[];
+  data.api.browsingData.remove=async options=>{if(options.origins[0].startsWith('http:'))throw Error('synthetic failure');};
+  const result=await executeCleanupPlan(data.api,createQueue(),null,null,'manual',{onProgress:p=>updates.push({...p})});
+  assert.equal(updates[0].completed,0);assert.equal(updates[0].percent,0);
+  assert.equal(updates[0].total,3);
+  const last=updates.at(-1);
+  assert.equal(last.completed,3);assert.equal(last.percent,100);
+  assert.equal(last.cookiesCompleted,1);assert.equal(last.originsCompleted,2);
+  assert.equal(last.deleted,2);assert.equal(last.failed,1);assert.equal(last.skipped,0);
+  assert.equal(result.failed,1);
+  for(let i=1;i<updates.length;i++){assert.ok(updates[i].completed>=updates[i-1].completed);assert.ok(updates[i].percent>=updates[i-1].percent);}
+  assert.ok(updates.some(p=>p.phase==='storage'&&p.completed===1));
+});
+test('protection added during execution produces omissions without losing progress steps',async()=>{
+  const data=fake({cookies:[cookie('first.example'),cookie('second.example')]}),updates=[];
+  const original=data.api.cookies.remove;
+  data.api.cookies.remove=async details=>{const result=await original(details);data.protect('second.example');return result;};
+  const result=await executeCleanupPlan(data.api,createQueue(),null,null,'automatic',{onProgress:p=>updates.push({...p})});
+  assert.equal(result.cookiesDeleted,1);assert.equal(data.cookies().length,1);
+  assert.equal(result.skipped,5);assert.equal(updates.at(-1).total,6);
+  assert.equal(updates.at(-1).completed,6);assert.equal(updates.at(-1).percent,100);
+  assert.equal(updates.at(-1).skipped,5);
+});
+test('an opaque Chromium call counts one step only after its response',async()=>{
+  const data=fake({tabs:['https://synthetic.example']}),updates=[];let finish;
+  data.api.browsingData.remove=()=>new Promise(resolve=>{finish=resolve;});
+  const running=executeCleanupPlan(data.api,createQueue(),null,null,'manual',{onProgress:p=>updates.push({...p})});
+  while(!finish)await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(updates.at(-1).phase,'storage');assert.equal(updates.at(-1).completed,0);assert.equal(updates.at(-1).total,1);
+  finish();await running;
+  assert.equal(updates.at(-1).completed,1);assert.equal(updates.at(-1).percent,100);
+});

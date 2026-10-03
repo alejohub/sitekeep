@@ -12,6 +12,18 @@ SiteKeep es una extensión Manifest V3. `src/background/worker.js` recibe mensaj
 
 La limpieza automática omite la vista previa manual y calcula candidatos actuales al dispararse una alarma o cerrarse la última ventana normal. Nunca usa `runtime.onSuspend` para hacer trabajo asíncrono.
 
+## Progreso y ciclo de vida MV3
+
+`src/lib/job.js` es el coordinador central, instanciado una vez en el service worker. `start()` bloquea una segunda limpieza antes de iniciar trabajo de API. Asigna un `operationId` y publica estado `running` con porcentaje 0 y fase `preparing`. El motor obtiene el plan actual e informa `total = cookies candidatas + llamadas por origen`; cada paso que termina incrementa `completed`, incluso si se omite por protección o falla. Mantiene contadores separados de cookies y orígenes, además de borrados, omisiones y fallos. Los cambios de protección siguen serializados con cada borrado en la cola original.
+
+`executeCleanupPlan(..., {onProgress})` publica contadores cada 200 ms como máximo, más transiciones de fase y el resultado final. Cada llamada `browsingData.remove` agrupa todos los tipos admitidos para un origen y cuenta como un paso indivisible: la fase indica que está en curso y el paso no se completa hasta recibir respuesta. No se inventa progreso interno. Los resultados parciales se conservan y un estado `completed` con `failed > 0` se presenta explícitamente como completado con errores.
+
+El job guarda únicamente agregados, fases, identificador y tiempos bajo `sitekeepCleanupProgress` en `storage.session`. No guarda el plan, cookies ni orígenes. Los checkpoints se limitan a uno cada 200 ms, salvo inicio, cambios de fase y final. El servicio responde a `status` y añade `progress` al `snapshot` existente. Una lectura inicial fallida o un fallo del checkpoint inicial impiden comenzar la limpieza. Un fallo posterior de checkpoint no provoca repetición de borrados: el estado en memoria sigue disponible mediante `status`.
+
+`src/lib/progress-ui.js` se comparte entre popup y dashboard. Lee `status` al abrir, escucha cambios del storage de sesión y consulta `status` cada 500 ms solo mientras la operación está activa, como respaldo. Bloquea controles conflictivos y descartará respuestas antiguas. Un resultado reciente permanece visible 1,5 segundos y después el contenedor `hidden` deja de ocupar espacio; el resumen queda en el aviso. Al completar no permanecen timers de consulta. La UI no incorpora botón de cancelación.
+
+Cerrar una página no detiene el trabajo del servicio. Un reinicio real del worker convierte cualquier checkpoint `running` en `failed` con `interrupted: true`; se muestra el último recuento conocido y nunca se reproduce la limpieza anterior. No es una promesa de ejecución persistente frente a cualquier interrupción de Chromium. Un checkpoint recuperado puede estar ligeramente atrasado respecto al último estado en memoria. El componente contempla ese retroceso al informar interrupción, sin quedarse bloqueado ni aceptar después un estado activo antiguo.
+
 ## Modalidades
 
 **Completa:** popup por sitio y dashboard global comparten el motor. `Limpiar todo` significa todos los candidatos no protegidos descubiertos; está junto a «Actualizar» y no usa el selector de tiempo reciente. No se usa un borrado global del navegador.

@@ -45,6 +45,14 @@ export async function executeCleanupPlan(api,queue,authorization=null,host=null,
   const cookies=authorization?authorization.cookies.filter(c=>cookieIds.has(identity(c))):fresh.plan.cookies;
   const allowedIds=new Set(cookies.map(identity));
   result.sites=hosts.length;
+  const progress={total:cookies.length+origins.length,completed:0,cookiesTotal:cookies.length,cookiesCompleted:0,originsTotal:origins.length,originsCompleted:0,phase:cookies.length?'cookies':origins.length?'storage':'finishing'};
+  let lastUpdate=-Infinity;
+  const publish=async(force=false)=>{
+    if(!options.onProgress||(!force&&Date.now()-lastUpdate<200))return;
+    lastUpdate=Date.now();
+    await options.onProgress({...progress,cookiesDeleted:result.cookiesDeleted,originsCleared:result.originsCleared,deleted:result.cookiesDeleted+result.originsCleared,failed:result.failed,skipped:result.skipped,percent:progress.total?Math.floor(progress.completed*100/progress.total):0});
+  };
+  await publish(true);
   for(const candidate of cookies){
     try{
       const outcome=await queue(async()=>{
@@ -54,7 +62,9 @@ export async function executeCleanupPlan(api,queue,authorization=null,host=null,
       });
       if(outcome==='deleted')result.cookiesDeleted++;else result.skipped++;
     }catch(error){result.failed++;result.errors.push(`Cookie: ${error.message}`);}
+    progress.completed++;progress.cookiesCompleted++;await publish();
   }
+  if(origins.length&&progress.phase!=='storage'){progress.phase='storage';await publish(true);}
   for(const origin of origins){
     try{
       const cleared=await queue(async()=>{
@@ -69,7 +79,9 @@ export async function executeCleanupPlan(api,queue,authorization=null,host=null,
       });
       if(cleared)result.originsCleared++;else result.skipped++;
     }catch(error){result.failed++;result.errors.push(`${origin}: ${error.message}`);}
+    progress.completed++;progress.originsCompleted++;await publish();
   }
+  progress.phase='finishing';await publish(true);
   await queue(async()=>{const state=await readState(api);state.history=[result,...state.history].slice(0,30);await saveState(api,state);});
   return result;
 }

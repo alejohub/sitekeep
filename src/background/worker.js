@@ -7,10 +7,12 @@ import {watchLastNormalWindow} from '../lib/last-window.js';
 import {createRecentCookies,RECENT_HOURS} from '../lib/recent-cookies.js';
 import {identity} from '../lib/cookies.js';
 import {inventory} from '../lib/compat.js';
+import {createCleanupJob} from '../lib/job.js';
 
 const api=chrome,queue=createQueue(),previews=new Map(),ALARM='sitekeep-clean';
 const recentCookies=createRecentCookies(api);
-let running=false,activeRevoked=null;
+const job=createCleanupJob(api);
+let activeRevoked=null;
 async function ensureAlarm(){
   const state=await readState(api);
   if(state.schedule.mode!=='interval'){await api.alarms.clear(ALARM);return;}
@@ -20,20 +22,23 @@ async function ensureAlarm(){
   }
 }
 async function run(authorization=null,host=null,source='manual',recentHours=null){
-  if(running)throw new Error('Ya hay una limpieza en curso');
-  running=true;activeRevoked=new Set();
-  try{return await executeCleanupPlan(api,queue,authorization,host,source,{revokedIds:activeRevoked,recentEligible:recentHours===null?null:async cookie=>(await recentCookies.eligible([cookie],recentHours)).has(identity(cookie))});}
-  finally{running=false;activeRevoked=null;}
+  return job.start(source,async onProgress=>{
+    activeRevoked=new Set();
+    try{return await executeCleanupPlan(api,queue,authorization,host,source,{onProgress,revokedIds:activeRevoked,recentEligible:recentHours===null?null:async cookie=>(await recentCookies.eligible([cookie],recentHours)).has(identity(cookie))});}
+    finally{activeRevoked=null;}
+  });
 }
 async function handle(message){
   if(!message || typeof message.type!=='string')throw new Error('Solicitud inválida');
+  if(message.type==='status')return job.status();
   if(message.type==='snapshot'){
     const [data,active,alarm]=await Promise.all([discover(api),api.tabs.query({active:true,currentWindow:true}),api.alarms.get(ALARM)]);
     const host=pageHost(active[0]?.url),protectedSite=!!host&&protectedHost(host,data.state.protectedSites);
     const siteCookies=host?data.cookies.filter(c=>applies(c,host)).length:0;
     const plan=buildCleanupPlan(data.rows,data.cookies,data.state.protectedSites);
     const rows=data.rows.map(row=>({...row,releasableBytes:plan.measured.releasableByHost[row.host]??0}));
-    return {state:data.state,host,protectedSite,siteCookies,rows,totalCookies:data.cookies.length,measured:plan.measured,running,nextRun:alarm?.scheduledTime};
+    const progress=await job.status();
+    return {state:data.state,host,protectedSite,siteCookies,rows,totalCookies:data.cookies.length,measured:plan.measured,running:progress.state==='running',progress,nextRun:alarm?.scheduledTime};
   }
   if(message.type==='toggle'){
     const host=normalizeHost(message.host);
@@ -45,6 +50,7 @@ async function handle(message){
     });
   }
   if(message.type==='preview'){
+    if(job.isRunning())throw new Error('Ya hay una limpieza en curso');
     const host=message.host?normalizeHost(message.host):null;
     const recentHours=message.recentHours??null;
     if(recentHours!==null&&!RECENT_HOURS.includes(recentHours))throw new Error('Periodo reciente inválido');
@@ -75,7 +81,7 @@ api.runtime.onMessage.addListener((message,sender,respond)=>{
 });
 api.alarms.onAlarm.addListener(alarm=>{
   if(alarm.name!==ALARM)return;
-  readState(api).then(state=>state.schedule.mode==='interval'&&!running?run(null,null,'automatic'):null).catch(()=>{});
+  readState(api).then(state=>state.schedule.mode==='interval'&&!job.isRunning()?run(null,null,'automatic'):null).catch(()=>{});
 });
 api.runtime.onStartup.addListener(()=>ensureAlarm().catch(()=>{}));
 api.runtime.onInstalled.addListener(()=>ensureAlarm().catch(()=>{}));
@@ -86,5 +92,5 @@ api.cookies.onChanged.addListener(change=>{
 });
 watchLastNormalWindow(api,async()=>{
   const [state,windows]=await Promise.all([readState(api),api.windows.getAll({windowTypes:['normal']})]);
-  if(state.schedule.mode==='lastWindowClosed'&&!windows.some(w=>w.type==='normal')&&!running)await run(null,null,'automatic');
+  if(state.schedule.mode==='lastWindowClosed'&&!windows.some(w=>w.type==='normal')&&!job.isRunning())await run(null,null,'automatic');
 });

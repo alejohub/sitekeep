@@ -7,6 +7,7 @@
 - Proyecto sin dependencias npm. `npm test` ejecuta tests con mocks; `npm run build` valida fuentes y genera iconos.
 - La lista protegida empieza vacía. No hay migración ni lectura del estado de CookieKeep.
 - Funcionan popup y dashboard, protección, limpieza manual completa y reciente, programación automática, orden por historial opcional y estimación de espacio liberable por sitio.
+- La rama `main` incorpora seguimiento de progreso posterior a la release `v0.1.0`; los assets y el tag publicados siguen siendo los originales.
 
 ## Versión y directorio
 
@@ -18,6 +19,8 @@
 - `src/background/worker.js`: mensajes, programación, vistas previas y exclusión mutua.
 - `src/lib/domains.js`, `sites.js`: definición de sitio, descubrimiento y política de protección.
 - `src/lib/engine.js`: vista previa, revalidación, ejecución y resultado.
+- `src/lib/job.js`: operación única, estado de progreso agregado, checkpoints y recuperación de interrupciones.
+- `src/lib/progress-ui.js`: componente común de progreso en popup/dashboard, escucha de sesión, bloqueo y ocultación final.
 - `src/lib/recent-cookies.js`: observaciones efímeras para limpieza reciente.
 - `src/lib/history.js`: ordenación opcional por visitas.
 - `src/lib/cookies.js`, `space.js`: selectores seguros y estimación parcial.
@@ -53,6 +56,16 @@ La llamada se hace por origen descubierto y nunca como borrado global. Con cualq
 ## Tests y build
 
 `npm test` ejecuta pruebas con APIs simuladas para historial, seguridad de protección, vista previa, errores parciales, programación, limpieza reciente y espacio. Para v0.1.0 pasaron 42 pruebas. `npm run build` validó 28 archivos y generó iconos; `powershell -NoProfile -File scripts/package.ps1` produjo y verificó los 24 archivos de runtime del ZIP. No hay script de lint ni typecheck adicional. No se usan datos reales del navegador.
+
+Validación del progreso en `main` (3 de octubre de 2026): 58 pruebas aprobadas, 0 fallidas y build correcto con 33 archivos validados. La suite incluye pruebas del motor con contadores reales, llamadas Chromium indivisibles, exclusión mutua, checkpoints limitados, reinicio del servicio, restauración de estado al abrir páginas y retirada de la barra. Consultar `tests/job.test.js`, `tests/progress-ui.test.js`, `tests/popup.test.js`, `tests/dashboard.test.js` y `tests/engine.test.js`. No se ha ejecutado limpieza en un perfil real; queda pendiente validación visual en un perfil aislado.
+
+## Progreso de limpieza
+
+El servicio crea un único job. Todas las limpiezas pasan por `job.start(source, execute)`; no llamar directamente al motor desde la UI. El motor informa `total`, `completed`, contadores de cookies y orígenes, borrados, omitidos, fallidos y fase. Una cookie es un paso; una llamada `browsingData.remove` por origen es otro. El total corresponde al plan revalidado al ejecutar, no al número previo de filas de la vista previa. El porcentaje es `floor(completed * 100 / total)` y termina en 100 al completar el plan, también si queda vacío. Los fallos parciales cuentan como pasos procesados y se muestran como errores.
+
+El estado temporal vive bajo `sitekeepCleanupProgress` en `chrome.storage.session`, con `operationId`, estado, revisión, fases y tiempos, sin cookies/dominios/URLs. Checkpoints cada 200 ms con inicio/transiciones/final forzados. `status` devuelve el estado actual y `snapshot` también lo incluye. Las páginas comparten `startCleanupProgress()`: escucha de sesión, consulta de respaldo cada 500 ms exclusivamente durante actividad, controles bloqueados y resultado visible 1,5 s antes de ocultarse. Un popup reabierto recupera la limpieza activa. El resumen final permanece en `notice`; no hay Cancelar.
+
+Si el worker se reinicia con un checkpoint activo, lo marca como fallido/interrumpido y exige un nuevo plan manual; nunca reanuda ni repite borrados. El último checkpoint puede quedar atrás respecto al contador en memoria. Las pruebas cubren ese caso para evitar una UI permanentemente ocupada. Chromium no expone el avance interno de caché/almacenamiento: mantener esas llamadas como pasos indivisibles.
 
 ## Git/GitHub y release
 

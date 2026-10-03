@@ -10,15 +10,17 @@ class Element{
   close(){this.open=false;}
   get lastChild(){return this.children.at(-1);}
 }
-const ids=['version','search','filter','sort','history-period','visits-heading','ranking-status','history-permission','rows','empty','metrics','interval','next','clean-all','clean-recent','dry-recent','recent-hours','history','refresh','settings','notice','dialog','dialog-title','dialog-body','dialog-actions'];
+const ids=['version','search','filter','sort','history-period','visits-heading','ranking-status','history-permission','rows','empty','metrics','interval','next','clean-all','clean-recent','dry-recent','recent-hours','history','refresh','settings','notice','dialog','dialog-title','dialog-body','dialog-actions','cleanup-progress','cleanup-progress-label','cleanup-progress-bar','cleanup-progress-stats','cleanup-progress-counts'];
 const elements=Object.fromEntries(ids.map(id=>[id,new Element()]));
 elements.filter.value='all';elements.sort.value='cookies';elements['history-period'].value='30';elements['recent-hours'].value='1';
 globalThis.document={getElementById:id=>elements[id],createElement:tag=>new Element(tag)};
 let granted=false,requests=0,searches=0;
 const messages=[];
+const storageListeners=[];
+let cleanupProgress={state:'idle',revision:0};
 globalThis.chrome={
-  runtime:{getManifest:()=>({version:'0.1.0'}),sendMessage:async message=>{messages.push(message);return {ok:true,data:message.type==='preview'?{token:'test-preview',hosts:['a.test'],cookieCount:1,estimatedBytes:231,keptProtected:0,temporalExcluded:0,types:['cookies']}:{state:{protectedSites:[],schedule:{mode:'disabled'},history:[]},rows:[{host:'a.test',cookies:1,origins:['https://a.test'],protected:false,releasableBytes:231}],totalCookies:1,measured:{releasableBytes:231},running:false}};}},
-  storage:{local:{get:async()=>({dashboardPreferences:{sort:'cookies',period:30}}),set:async()=>{}},onChanged:{addListener:()=>{}}},
+  runtime:{getManifest:()=>({version:'0.1.0'}),sendMessage:async message=>{messages.push(message);return {ok:true,data:message.type==='status'?cleanupProgress:message.type==='preview'?{token:'test-preview',hosts:['a.test'],cookieCount:1,estimatedBytes:231,keptProtected:0,temporalExcluded:0,types:['cookies']}:{state:{protectedSites:[],schedule:{mode:'disabled'},history:[]},rows:[{host:'a.test',cookies:1,origins:['https://a.test'],protected:false,releasableBytes:231}],totalCookies:1,measured:{releasableBytes:231},running:cleanupProgress.state==='running',progress:cleanupProgress}};}},
+  storage:{local:{get:async()=>({dashboardPreferences:{sort:'cookies',period:30}}),set:async()=>{}},onChanged:{addListener:fn=>storageListeners.push(fn)}},
   permissions:{contains:async()=>granted,request:()=>{requests++;return Promise.resolve(granted);},onRemoved:{addListener:()=>{}}}
 };
 const tick=()=>new Promise(resolve=>setTimeout(resolve,10));
@@ -54,4 +56,14 @@ test('recent actions use the selected time globally while clean all ignores it',
   messages.length=0;
   elements['clean-all'].onclick();await tick();
   assert.deepEqual(messages.find(m=>m.type==='preview'),{type:'preview',host:null,recentHours:null});
+});
+test('dashboard receives shared progress and locks row/global actions until completion',async()=>{
+  cleanupProgress={state:'running',operationId:'dashboard-operation',revision:1,total:10,completed:2,percent:20,startedAt:Date.now(),phase:'cookies'};
+  for(const listener of storageListeners)listener({sitekeepCleanupProgress:{newValue:cleanupProgress}},'session');
+  assert.equal(elements['clean-all'].disabled,true);assert.equal(elements['clean-recent'].disabled,true);
+  assert.equal(elements.rows.children[0].lastChild.children[0].children[1].disabled,true);
+  cleanupProgress={...cleanupProgress,state:'completed',revision:2,completed:10,percent:100,finishedAt:Date.now()};
+  for(const listener of storageListeners)listener({sitekeepCleanupProgress:{newValue:cleanupProgress}},'session');
+  await tick();assert.equal(elements['clean-all'].disabled,false);
+  assert.equal(elements.rows.children[0].lastChild.children[0].children[1].disabled,false);
 });

@@ -1,9 +1,12 @@
 import {formatEstimate} from './space.js';
 export const $=id=>document.getElementById(id);
 export const date=value=>value?new Date(value).toLocaleString('es'):'—';
+let cleanupBusy=false;
+export function setCleanupBusy(value){cleanupBusy=value;}
+const cleanupControl=button=>button.className==='danger'||['clean-all','clean-recent','dry-recent','delete','settings','interval','recent-hours','protect'].includes(button.id);
 export function node(tag,text,className){const el=document.createElement(tag);if(text!==undefined)el.textContent=text;if(className)el.className=className;return el;}
 export async function request(type,data={}){const response=await chrome.runtime.sendMessage({type,...data});if(!response?.ok)throw new Error(response?.error||'No se pudo contactar con SiteKeep');return response.data;}
-export async function perform(action,button){if(button)button.disabled=true;try{await action();}catch(error){$('notice').textContent=error.message;}finally{if(button)button.disabled=false;}}
+export async function perform(action,button){if(button)button.disabled=true;try{await action();}catch(error){$('notice').textContent=error.message;}finally{if(button)button.disabled=cleanupBusy&&cleanupControl(button);}}
 export function makeButton(label,action,className='secondary'){const button=node('button',label,className);button.type='button';button.onclick=()=>perform(action,button);return button;}
 export function showDialog(title,body,actions=[]){$('dialog-title').textContent=title;$('dialog-body').replaceChildren(...body);$('dialog-actions').replaceChildren(...actions,makeButton('Cerrar',()=>$('dialog').close()));$('dialog').showModal();}
 export async function showPreview(host=null,dry=false,refresh=()=>{},recentHours=null){

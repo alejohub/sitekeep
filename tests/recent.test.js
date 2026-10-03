@@ -37,8 +37,10 @@ test('recent confirmation stays inside preview and excludes a new cookie',async(
   try{
     await tracker.observe({cookie:a,removed:false});const ids=await tracker.eligible(f.cookies(),1),p=await preview(f.api,null,{recentIds:ids});
     f.add(newCookie);await tracker.observe({cookie:newCookie,removed:false});
-    const result=await executeCleanupPlan(f.api,createQueue(),p.plan,null,'recent',{recentEligible:async item=>(await tracker.eligible([item],1)).has(identity(item))});
+    const updates=[];
+    const result=await executeCleanupPlan(f.api,createQueue(),p.plan,null,'recent',{onProgress:p=>updates.push(p),recentEligible:async item=>(await tracker.eligible([item],1)).has(identity(item))});
     assert.equal(result.cookiesDeleted,1);assert.deepEqual(f.cookies().map(c=>c.name),['new']);assert.ok(!f.calls.some(c=>c[0]==='origin'));
+    assert.ok(updates.every(p=>p.phase!=='storage'));
   }finally{tracker.stop();}
 });
 test('protection added after recent preview wins',async()=>{

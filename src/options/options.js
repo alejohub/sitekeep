@@ -3,8 +3,14 @@ import {$,date,node,request,perform,makeButton,showPreview} from '../lib/ui.js';
 import {createHistoryCache,sortByVisits} from '../lib/history.js';
 import {validatePreferences,historyPermission,requestHistoryFromGesture} from '../lib/history-settings.js';
 import {formatEstimate} from '../lib/space.js';
+import {startCleanupProgress} from '../lib/progress-ui.js';
 $('version').textContent=`v${chrome.runtime.getManifest().version}`;
 let snapshot,ranking={phase:'idle'},rankingRequest=0,historyTimer;
+const progress=startCleanupProgress(active=>{
+  if(snapshot){snapshot.running=active;setBusy(active);renderRows();}
+  if(!active)perform(refresh);
+});
+function setBusy(active){for(const id of ['clean-all','clean-recent','dry-recent','settings','interval','recent-hours'])$(id).disabled=active;}
 const historyCache=createHistoryCache({search:query=>chrome.history.search(query),getVisits:query=>chrome.history.getVisits(query)});
 let historyListening=false;
 function historyChanged(){historyCache.clear();clearTimeout(historyTimer);historyTimer=setTimeout(()=>perform(loadRanking),350);}
@@ -63,7 +69,9 @@ async function refresh(){
   }
   $('interval').value=scheduleValue({cleanupSchedule:s.state.schedule});
   $('next').textContent=scheduleText({cleanupSchedule:s.state.schedule},s.nextRun);
-  for(const id of ['clean-all','clean-recent','dry-recent'])$(id).disabled=s.running;
+  if(s.progress)progress.render(s.progress);
+  s.running=s.progress?progress.isRunning():s.running;
+  setBusy(s.running);
   $('history').replaceChildren(...s.state.history.map(r=>node('li',`${date(r.at)} · ${r.source==='automatic'?'Automática':r.source==='recent'?'Reciente':'Manual'} · ${r.sites} sitios · ${r.cookiesDeleted} cookies · ${r.originsCleared} orígenes · ${r.failed} errores`)));
   if(!s.state.history.length)$('history').append(node('li','Todavía no hay limpiezas.'));
   renderRows();
