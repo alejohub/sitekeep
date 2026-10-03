@@ -1,4 +1,4 @@
-# Matriz de capacidades — SiteKeep 0.1.0
+# Matriz de capacidades — SiteKeep 0.1.1
 
 Fuente principal: [API oficial de browsingData](https://developer.chrome.com/docs/extensions/reference/api/browsingData) y [API oficial de cookies](https://developer.chrome.com/docs/extensions/reference/api/cookies).
 

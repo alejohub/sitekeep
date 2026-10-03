@@ -3,15 +3,15 @@
 ## Estado actual
 
 - Proyecto local independiente: `C:\src\sitekeep`.
-- Extensión Chromium Manifest V3, versión `0.1.0` en `manifest.json`; la interfaz la lee con `chrome.runtime.getManifest().version`.
+- Extensión Chromium Manifest V3, versión `0.1.1` en `manifest.json`; la interfaz la lee con `chrome.runtime.getManifest().version`.
 - Proyecto sin dependencias npm. `npm test` ejecuta tests con mocks; `npm run build` valida fuentes y genera iconos.
 - La lista protegida empieza vacía. No hay migración ni lectura del estado de CookieKeep.
 - Funcionan popup y dashboard, protección, limpieza manual completa y reciente, programación automática, orden por historial opcional y estimación de espacio liberable por sitio.
-- La rama `main` incorpora seguimiento de progreso posterior a la release `v0.1.0`; los assets y el tag publicados siguen siendo los originales.
+- La release `v0.1.1` incluye el seguimiento de progreso. El tag y los assets de `v0.1.0` siguen siendo los originales.
 
 ## Versión y directorio
 
-`0.1.0` en `manifest.json`. Directorio: `C:\src\sitekeep`.
+`0.1.1` en `manifest.json`. Directorio: `C:\src\sitekeep`.
 
 ## Arquitectura importante
 
@@ -69,7 +69,9 @@ Si el worker se reinicia con un checkpoint activo, lo marca como fallido/interru
 
 ## Git/GitHub y release
 
-Rama `main` y remoto `origin` del repositorio existente `alejohub/sitekeep`. La versión publicada es `v0.1.0`, con tag anotado sobre el commit de release y ZIP Chromium más suma SHA-256 en GitHub Releases. Las notas están en `RELEASE_NOTES.md`; el ZIP contiene solo `manifest.json`, `src/` e `icons/`. El directorio local `releases/` está excluido de Git. Antes de una nueva entrega, verificar `git status`, rama, remoto, tag y versión del manifest; ejecutar pruebas y build; generar el ZIP con `powershell -NoProfile -File scripts/package.ps1`; comprobar hashes y descargar los artefactos remotos para verificar su integridad. No modificar CookieKeep.
+La entrega corregida `v0.1.1` incluye progreso y el arreglo de temporizadores, con 60 pruebas aprobadas, build de 34 archivos y ZIP de 26 archivos de runtime verificados. Assets: `SiteKeep-v0.1.1-chromium.zip` y `SiteKeep-v0.1.1-SHA256SUMS.txt`. La release `v0.1.0` se conserva como referencia histórica.
+
+Rama `main` y remoto `origin` del repositorio existente `alejohub/sitekeep`. La versión publicada es `v0.1.1`, con tag anotado sobre el commit de release y ZIP Chromium más suma SHA-256 en GitHub Releases. Las notas están en `RELEASE_NOTES.md`; el ZIP contiene solo `manifest.json`, `src/` e `icons/`. El directorio local `releases/` está excluido de Git. Antes de una nueva entrega, verificar `git status`, rama, remoto, tag y versión del manifest; ejecutar pruebas y build; generar el ZIP con `powershell -NoProfile -File scripts/package.ps1`; comprobar hashes y descargar los artefactos remotos para verificar su integridad. No modificar CookieKeep.
 
 ## Known issues / limitations
 
@@ -83,3 +85,56 @@ Rama `main` y remoto `origin` del repositorio existente `alejohub/sitekeep`. La 
 ## Next steps
 
 Probar manualmente el diseño y la experiencia en un perfil aislado, revisar accesibilidad y comportamiento responsive, y evaluar APIs futuras para descubrir orígenes de almacenamiento sin cookies ni pestañas. Mantener la política conservadora mientras Chromium no ofrezca aislamiento verificable para datos de terceros.
+
+## Corrección incorporada a la release 0.1.1 — 2026-10-03
+
+Regresión de 0.1.1: popup y dashboard mostraban `Illegal invocation`. Reproducida
+antes de modificar runtime en Edge/Chromium headless, perfil temporal de Playwright,
+con páginas reales y `chrome.*` simulado; no se cargó el perfil personal.
+
+Causa: `startCleanupProgress` copiaba `Window.setTimeout` y `Window.clearTimeout`
+al objeto `clock` y después los invocaba como `clock.clearTimeout` / `clock.setTimeout`.
+El receptor era un objeto común, no Window. Stack nativo capturado en ambas páginas:
+
+```text
+TypeError: Illegal invocation
+    at Object.render (http://127.0.0.1:53741/src/lib/progress-ui.js:19:11)
+    at eval (eval at evaluate (:311:30), <anonymous>:1:117)
+    at async <anonymous>:337:30
+```
+
+También se reprodujo el mismo error en `stop`, línea 50:56, al cancelar temporizadores.
+No era `chrome.cookies`, ni `chrome.permissions`, ni un handler del worker.
+La revisión de los módulos runtime no encontró otros métodos nativos extraídos
+con este problema: los wrappers de historial llaman al namespace original, y el
+resto de llamadas Chrome conservan su receptor. El fallo equivalente de
+`setTimeout`, usado para polling/ocultación, queda corregido por el mismo adaptador.
+
+Corrección: el reloj por defecto usa funciones que llaman explícitamente a
+`globalThis.setTimeout(...)` y `globalThis.clearTimeout(...)`. Se conserva la
+inyección de reloj para tests, sin binds generales ni cambios del motor de limpieza.
+`ui.js` presenta errores por operación y guarda los detalles en console.error local;
+el worker registra la excepción original y sigue respondiendo `ok:false`.
+
+Validación: antes 58/58 tests, que no detectaban el receptor incorrecto;
+después 60/60, con un nuevo test de receptor nativo y otro de manejo de errores.
+Build: 34 archivos validados. `scripts/check-ui.mjs` añade una prueba de las páginas
+reales con temporizadores nativos Chromium y Chrome APIs ficticias que comprueban
+su receptor. Cubre carga/refresco, KPIs/estimación, filtros, historial sin/con permiso,
+protección, sitio actual, selector automático, apertura de dashboard, dry run y
+previews recientes/globales; progreso activo, polling, ocultación final y stop.
+Prohíbe explícitamente el mensaje `clean`: no se ejecutan limpiezas destructivas.
+No sustituye la validación de APIs reales en una extensión instalada.
+
+Para repetir: ejecutar `node --test`, `node scripts/build.mjs` y
+`node scripts/check-ui.mjs` desde este proyecto. La última comprobación requiere
+Playwright disponible: `SITEKEEP_NODE_MODULES` permite señalar su carpeta de módulos
+si no está en la resolución normal. Usa Edge por defecto; `SITEKEEP_BROWSER` permite
+señalar otro ejecutable Chromium. No hace peticiones externas (servidor localhost).
+
+El usuario autorizó publicar y reescribir expresamente el commit anterior. Se mantiene
+versión 0.1.1: commit de release sustituido, tag anotado actualizado y assets
+reemplazados. El commit original era 21ba9196117cdc2e37d48f40e388f7e315963e6c.
+La rama y el tag se publican de forma atómica con leases que exigen los valores
+remotos comprobados. Repetir la descarga y verificar el checksum del nuevo ZIP.
+La release 0.1.0 permanece intacta.

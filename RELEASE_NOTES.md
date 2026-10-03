@@ -1,8 +1,12 @@
-# SiteKeep v0.1.0
+# SiteKeep v0.1.1
 
-Primera release de SiteKeep para Chromium 130 o superior. Es una extensión independiente de CookieKeep: protege sitios completos y limpia datos de sitios no protegidos con procesamiento local.
+Actualización de SiteKeep para Chromium 130 o superior que incorpora progreso real de limpieza en popup y dashboard. Es una extensión independiente de CookieKeep: protege sitios completos y limpia datos de sitios no protegidos con procesamiento local.
 
 ## Incluye
+
+- Corrección de `Illegal invocation` al abrir o refrescar popup/dashboard: los temporizadores nativos conservan su receptor Window. Los errores internos muestran mensajes comprensibles y conservan el diagnóstico en la consola local.
+
+- Progreso centralizado de limpieza completa, por sitio y reciente: cuenta cookies y llamadas por origen, muestra omisiones/fallos y bloquea limpiezas simultáneas. Al completar llega al 100 % y se oculta tras 1,5 segundos. Al reabrir el popup se recupera el estado activo; un reinicio del servicio informa de interrupción sin repetir borrados.
 
 - Protección por hostname y subdominios, con prioridad sobre cada limpieza. El popup permite proteger el sitio actual, borrar sus datos si no está protegido y abrir el dashboard con un botón verde destacado.
 - Dashboard con «Limpiar todo» junto a «Actualizar», acciones por sitio, vista previa manual y limpieza automática por intervalo o al cerrar la última ventana normal.
@@ -16,8 +20,10 @@ Cada confirmación manual permanece dentro de la vista previa revisada y revalid
 
 No hay telemetría ni envío de navegación. Las pruebas usan APIs simuladas; no se han ejecutado limpiezas sobre el perfil normal del navegador. Consulte [CAPABILITIES.md](CAPABILITIES.md) y [HANDOFF.md](HANDOFF.md) para detalles técnicos y continuidad.
 
-Validación de esta release: 42 pruebas aprobadas, build correcto y paquete verificado contra sus 24 archivos de runtime mediante SHA-256. Queda pendiente una revisión visual en un perfil aislado de Chromium.
+Validación de esta release: 60 pruebas aprobadas, build correcto con 34 archivos validados y paquete verificado contra sus 26 archivos de runtime mediante SHA-256. Popup y dashboard comprobados en Chromium aislado con temporizadores nativos y APIs Chrome simuladas; sin errores de consola ni limpiezas destructivas.
 
 ## Instalación
 
-Descargue `SiteKeep-v0.1.0-chromium.zip`, compruebe su SHA-256 con el archivo de checksum adjunto, descomprímalo y cargue la carpeta mediante **Cargar descomprimida** en `chrome://extensions`. Pruebe las acciones de limpieza en un perfil de navegador aislado.
+Descargue `SiteKeep-v0.1.1-chromium.zip`, compruebe su SHA-256 con el archivo de checksum adjunto, descomprímalo y cargue la carpeta mediante **Cargar descomprimida** en `chrome://extensions`. Pruebe las acciones de limpieza en un perfil de navegador aislado.
+
+La release 0.1.1 se ha corregido sustituyendo su commit, tag y paquete publicados, por autorización del usuario. Si descargó el paquete anterior, vuelva a descargarlo y compruebe el nuevo checksum.

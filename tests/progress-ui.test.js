@@ -64,3 +64,34 @@ test('worker interruption can recover an older checkpoint without leaving UI bus
     assert.equal(f.ui.isRunning(),true);
   }finally{f.ui.stop();}
 });
+
+test('default timer adapter preserves the native global receiver in render, timers and stop',async()=>{
+  const f=fixture();f.ui.stop();
+  const savedSet=globalThis.setTimeout,savedClear=globalThis.clearTimeout;
+  let sets=0,clears=0;
+  globalThis.setTimeout=function(){assert.equal(this,globalThis,'Window.setTimeout needs its native receiver');sets++;return 1;};
+  globalThis.clearTimeout=function(){assert.equal(this,globalThis,'Window.clearTimeout needs its native receiver');clears++;};
+  let controller;
+  try{
+    controller=startCleanupProgress();await tick();
+    controller.render({...active,startedAt:Date.now()});
+    controller.render({...active,state:'completed',revision:2,finishedAt:Date.now()});
+    controller.stop();assert.equal(sets,2);assert.ok(clears>=6);
+  }finally{globalThis.setTimeout=savedSet;globalThis.clearTimeout=savedClear;controller?.stop();}
+});
+
+test('technical exceptions are logged locally and do not leak into the notice',async()=>{
+  const f=fixture();await tick();f.ui.stop();
+  const savedError=console.error,logs=[];console.error=(...args)=>logs.push(args);
+  try{
+    const error=new TypeError('Illegal invocation');
+    await perform(async()=>{throw error;});
+    assert.match(f.elements.notice.textContent,/No se pudo completar esta acción/);
+    assert.ok(logs.some(args=>args.includes(error)));
+    const {request}=await import('../src/lib/ui.js');
+    chrome.runtime.sendMessage=async()=>({ok:false,error:'Illegal invocation'});
+    await perform(()=>request('snapshot'));
+    assert.equal(f.elements.notice.textContent,'No se pudo actualizar el estado de SiteKeep.');
+    assert.ok(logs.some(args=>args.some(value=>value?.message==='Illegal invocation')));
+  }finally{console.error=savedError;}
+});

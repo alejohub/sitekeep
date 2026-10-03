@@ -1,7 +1,7 @@
 {
   "manifest_version":3,
   "name":"SiteKeep",
-  "version":"0.1.0",
+  "version":"0.1.1",
   "description":"Protege sitios y limpia sus datos localmente.",
   "minimum_chrome_version":"130",
   "permissions":["browsingData","cookies","storage","alarms","tabs"],

@@ -32,11 +32,11 @@ npm run build
 
 El build valida el código y genera los iconos locales. Las pruebas usan APIs simuladas; no borran datos del perfil real.
 
-## Release 0.1.0
+## Release 0.1.1
 
-La rama `main` incluye ahora el seguimiento de progreso desarrollado después de esta release. El ZIP de `v0.1.0` conserva el contenido original; para usar el nuevo progreso, cargue el proyecto actual como extensión descomprimida.
+La release corregida `v0.1.1` incorpora el seguimiento de progreso en popup y dashboard y resuelve `Illegal invocation` mediante llamadas válidas a los temporizadores nativos. Si descargó el paquete anterior de esta misma versión, vuelva a descargarlo y recargue la extensión. La release anterior `v0.1.0` conserva su contenido original.
 
-La [release v0.1.0](https://github.com/alejohub/sitekeep/releases/tag/v0.1.0) contiene un ZIP para Chromium. Descomprímalo en una carpeta propia y use **Cargar descomprimida** en `chrome://extensions`. El ZIP incluye `manifest.json`, `src/` e `icons/`; no incluye perfiles, datos de navegación ni herramientas de desarrollo. El archivo de suma SHA-256 publicado junto al ZIP permite comprobar la descarga.
+La [release v0.1.1](https://github.com/alejohub/sitekeep/releases/tag/v0.1.1) contiene un ZIP para Chromium. Descomprímalo en una carpeta propia y use **Cargar descomprimida** en `chrome://extensions`. El ZIP incluye `manifest.json`, `src/` e `icons/`; no incluye perfiles, datos de navegación ni herramientas de desarrollo. El archivo de suma SHA-256 publicado junto al ZIP permite comprobar la descarga.
 
 Para generar y verificar el paquete desde el código fuente, ejecute primero `npm run build` y después `powershell -NoProfile -File scripts/package.ps1`. El paquete se guarda en `releases/`, directorio excluido de Git. Consulte [notas de la versión](RELEASE_NOTES.md) para funciones y límites de esta entrega.
 

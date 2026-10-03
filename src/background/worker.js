@@ -77,7 +77,7 @@ async function handle(message){
 }
 api.runtime.onMessage.addListener((message,sender,respond)=>{
   if(sender.id!==api.runtime.id || !sender.url?.startsWith(api.runtime.getURL('')))return false;
-  handle(message).then(data=>respond({ok:true,data}),error=>respond({ok:false,error:error.message}));return true;
+  handle(message).then(data=>respond({ok:true,data}),error=>{console.error(`[SiteKeep] Handler ${message.type} fallido`,error);respond({ok:false,error:error.message});});return true;
 });
 api.alarms.onAlarm.addListener(alarm=>{
   if(alarm.name!==ALARM)return;

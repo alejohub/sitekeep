@@ -1,7 +1,7 @@
 import {$,request,setCleanupBusy} from './ui.js';
 import {PROGRESS_KEY} from './job.js';
 export const RESULT_VISIBLE_MS=1500;
-export function startCleanupProgress(onBusyChange=()=>{},api=chrome,clock={now:()=>Date.now(),setTimeout,clearTimeout}){
+export function startCleanupProgress(onBusyChange=()=>{},api=chrome,clock={now:()=>Date.now(),setTimeout:(fn,delay)=>globalThis.setTimeout(fn,delay),clearTimeout:id=>globalThis.clearTimeout(id)}){
   let busy=false,stopped=false,pollTimer,hideTimer,lastRevision=-1,requestRevision=0,lastTerminal=null,lastOperationId=null,lastStartedAt=0,lastState='idle';
   function hide(){if(stopped)return;$('cleanup-progress').hidden=true;}
   function render(progress){
